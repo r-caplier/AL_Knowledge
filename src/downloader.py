@@ -21,19 +21,22 @@ from constants import *
 
 # Confusing or useless text patterns to remove or replace
 BAD_PATTERNS = [
-    {"pattern": r"\[([0-9][,-–]? ?)+\],?", "type": "remove"},  # References mentions [3] or [4-9]
+    {"pattern": r"\[?\[([0-9][,-–]? ?)+\]\]?,?", "type": "remove"},  # References mentions [3] or [4-9]
     {"pattern": r"\D[0-9]{1,2},", "type": "remove"},  # References mentions 3, 4, 7
     # References mention Text.2 or 35%.4 or Text,3
     {"pattern": r"([a-zA-Z%])([,\.]*)[0-9]+", "replace": r"\1\2", "type": "replace"},
-    {"pattern": r"\(.*?\)", "type": "remove"},  # Anything in parentheses, not greedy matching
+    # {"pattern": r"\(.*?\)", "type": "remove"},  # Anything in parentheses, not greedy matching
     {"pattern": r"i[iv]*\)", "type": "remove"},  # Roman bullet points in paragraphs
 ]
 
 # Same pattern matching, but to run last to cleanup punctuation
 PUNCTUATION = [
     {"pattern": r" +", "replace": " ", "type": "replace"},
+    {"pattern": r"^ ", "type": "remove"},
+    {"pattern": r" $", "type": "remove"},
     {"pattern": r" \.", "replace": ".", "type": "replace"},
     {"pattern": r" ,", "replace": ",", "type": "replace"},
+    {"pattern": r" \)", "replace": ")", "type": "replace"},
     {"pattern": r"\n+", "replace": "\n", "type": "replace"},
 ]
 
@@ -49,14 +52,12 @@ class CleanerClass():
         """
         Given text, removes or replaces a list of patterns from it.
         """
-        for pattern in BAD_PATTERNS:
+        for pattern in patterns:
             if pattern["type"] == "replace":
-                if "replace" in pattern.keys():
+                if "replace" in pattern.keys() and re.search(pattern["pattern"], text):
                     text = re.sub(pattern["pattern"], pattern["replace"], text)
-                else:
-                    text = re.sub(pattern["pattern"], "", text)
-            elif pattern["type"] == "full" and re.search(pattern["pattern"], text):
-                text = ""
+            elif pattern["type"] == "remove" and re.search(pattern["pattern"], text):
+                text = re.sub(pattern["pattern"], "", text)
 
         return text
 
@@ -67,8 +68,8 @@ class CleanerClass():
 
         for p in paragraphs:
             clean_p = self._pattern_remover(p, BAD_PATTERNS)
-            clean_p = self._pattern_remover(p, PUNCTUATION)
-            clean_paragraphs.append(clean_p)
+            clean_good_punct_p = self._pattern_remover(clean_p, PUNCTUATION)
+            clean_paragraphs.append(clean_good_punct_p)
 
         return '\n'.join(clean_paragraphs)
 
@@ -267,7 +268,7 @@ class DownloaderClass():
 
             if found:
                 found_num += 1
-                article_path = os.path.join(DATA_PATH, article_id)
+                article_path = os.path.join(ARTICLES_PATH, article_id)
                 if not os.path.exists(article_path):
                     os.mkdir(article_path)
                 with open(os.path.join(article_path, "raw.txt"), "w") as f:
@@ -294,9 +295,9 @@ downloader.download(search_terms, max_page_num=False, overwrite=False)
 
 cleaner = CleanerClass()
 print("Cleaning text...")
-for folder_path in tqdm(os.listdir(DATA_PATH)):
-    with open(os.path.join(DATA_PATH, folder_path, "raw.txt"), "r") as f:
+for folder_path in tqdm(os.listdir(ARTICLES_PATH)):
+    with open(os.path.join(ARTICLES_PATH, folder_path, "raw.txt"), "r") as f:
         text = f.read()
     clean_text = cleaner.clean(text)
-    with open(os.path.join(DATA_PATH, folder_path, 'clean.txt'), "w") as f:
+    with open(os.path.join(ARTICLES_PATH, folder_path, 'clean.txt'), "w") as f:
         f.write(clean_text)

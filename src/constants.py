@@ -12,3 +12,7 @@ if not os.path.exists(DATA_PATH):
 LOGS_PATH = os.path.join(ROOT_PATH, "logs")
 if not os.path.exists(LOGS_PATH):
     os.mkdir(LOGS_PATH)
+
+ARTICLES_PATH = os.path.join(DATA_PATH, "articles")
+if not os.path.exists(ARTICLES_PATH):
+    os.mkdir(ARTICLES_PATH)
