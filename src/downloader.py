@@ -2,13 +2,14 @@ import os
 import time
 import re
 from tqdm.auto import tqdm
+from datetime import datetime
 
 import pickle
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.firefox.service import Service
-from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
 from constants import *
 
@@ -80,7 +81,7 @@ class DownloaderClass():
 
     def __init__(self):
 
-        self.ser = Service(GeckoDriverManager().install())
+        self.ser = Service(ChromeDriverManager().install())
 
     def _pget(self, url, stream=False):
         """
@@ -134,7 +135,7 @@ class DownloaderClass():
         # Saving the results
         self.search_results_ids = full_search_ids
 
-    def _get_article_text(self, article_id):
+    def _get_article_features(self, article_id):
         """
         Finds the url of the corresponding article based on the article id in the page, wherever it might be hosted
         """
@@ -146,31 +147,57 @@ class DownloaderClass():
         pubmed_page = self._pget(pubmed_url)
         pubmed_soup = BeautifulSoup(pubmed_page.text, features="lxml")
 
+        # Grabbing author names
+        try:
+            author_names = []
+            authors_soup_list = pubmed_soup.find("div", {"class": "inline-authors"}
+                                                 ).find_all("span", {"class": "authors-list-item"})
+            for author_soup in authors_soup_list:
+                author_soup = author_soup.find("a", {"class": "full-name"})
+                author_names.append(author_soup["data-ga-label"])
+        except:
+            author_names = []
+
+        # Grabbing date of publication
+        try:
+            date_text = pubmed_soup.find("div", {"class": "article-source"}
+                                         ).find("span", {"class": "cit"}).text.split(";")[0]
+            date_text = " ".join(date_text.split(" ")[:2])
+            date = datetime.strptime(date_text, "%Y %b")
+        except:
+            date = "Undef"
+
+        # Grabbing all citations
+        citations_ids = []
+        citedby = pubmed_soup.find("div", {"class": "citedby-articles"})
+        if citedby:
+            for a in citedby.find_all("a", {"class": "docsum-title"}):
+                citations_ids.append(a["data-ga-action"])
+
         # Grabbing download links if available
         try:
             dl_features = pubmed_soup.find("div", {"class": "full-text-links"}).find("a", {"class": "link-item"})
             dl_url = dl_features.get('href')
             dl_page_type = dl_features.get('data-ga-action')
-        except:
-            return False, str(article_id) + " - No article links found"
 
-        soup = self._get_soup(dl_url)
-        response, text = self._get_text(soup, dl_page_type)
-        if not response:
-            if not text:
-                text = str(article_id) + f" - {dl_page_type}: Error in HTML"
-            else:
-                text = str(article_id) + " - " + text
-        return response, text
+            dl_soup = self._get_soup(dl_url)
+            response, text = self._get_text(dl_soup, dl_page_type)
+            if not response:
+                text = ""
+        except:
+            response = False
+            text = ""
+
+        return response, author_names, date, citations_ids, text
 
     def _get_soup(self, url):
         """
         Requests the soup from a page
         Selenium is used to account for DDoS protection that exists for some websites
         """
-        options = webdriver.FirefoxOptions()
+        options = webdriver.ChromeOptions()
         options.headless = True
-        browser = webdriver.Firefox(options=options, service=self.ser)
+        browser = webdriver.Chrome(options=options, service=self.ser)
 
         browser.get(url)
         time.sleep(2)
@@ -259,15 +286,20 @@ class DownloaderClass():
         print("Downloading...")
         doc_num = 0
         found_num = 0
-        found_dict = {"Name": [], "PubMedID": [], "Path": []}
+        articles_list = []
         log = "Logged actions -------------------\n"
 
         for article_id in tqdm(self.search_results_ids):
             doc_num += 1
-            found, text = self._get_article_text(article_id)
+            response, authors, date, citations_ids, text = self._get_article_features(article_id)
 
-            if found:
+            if response:
                 found_num += 1
+                articles_list.append({"ID": article_id,
+                                      "Authors": authors,
+                                      "Date": date,
+                                      "Citations": citations_ids,
+                                      })
                 article_path = os.path.join(ARTICLES_PATH, article_id)
                 if not os.path.exists(article_path):
                     os.mkdir(article_path)
@@ -283,7 +315,12 @@ class DownloaderClass():
         with open(os.path.join(LOGS_PATH, "download_log.txt"), "w") as f:
             f.write(log)
 
-        os.remove("geckodriver.log")
+        with open(os.path.join(DATA_PATH, "citations.csv"), "w") as f:
+            citations_df = pd.DataFrame(articles_list)
+            citations_df.to_csv(f, sep="|")
+
+        with open(os.path.join(DATA_PATH, "citations.pkl"), "wb") as f:
+            pickle.dump(citations_df, f)
 
 # -----------------------------------------------------------------------------
 
@@ -291,7 +328,7 @@ class DownloaderClass():
 downloader = DownloaderClass()
 print("Downloading...")
 search_terms = ["anastomotic", "leak"]
-downloader.download(search_terms, max_page_num=False, overwrite=False)
+downloader.download(search_terms, max_page_num=2, overwrite=True)
 
 cleaner = CleanerClass()
 print("Cleaning text...")
