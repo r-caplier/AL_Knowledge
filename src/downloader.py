@@ -298,8 +298,7 @@ class DownloaderClass():
                 articles_list.append({"ID": article_id,
                                       "Authors": authors,
                                       "Date": date,
-                                      "Citations": citations_ids,
-                                      })
+                                      "Citations": citations_ids})
                 article_path = os.path.join(ARTICLES_PATH, article_id)
                 if not os.path.exists(article_path):
                     os.mkdir(article_path)
@@ -316,7 +315,7 @@ class DownloaderClass():
             f.write(log)
 
         with open(os.path.join(DATA_PATH, "citations.csv"), "w") as f:
-            citations_df = pd.DataFrame(articles_list)
+            citations_df = pd.DataFrame(articles_list).set_index("ID")
             citations_df.to_csv(f, sep="|")
 
         with open(os.path.join(DATA_PATH, "citations.pkl"), "wb") as f:

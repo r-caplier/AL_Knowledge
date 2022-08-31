@@ -16,7 +16,9 @@ from tqdm.auto import tqdm
 from constants import *
 
 search_terms = ["anastomotic", "leak"]
-max_page_num = 1
+max_page_num = None
+
+OVERWRITE = False
 
 # -----------------------------------------------------------------------------
 
@@ -46,44 +48,49 @@ def _pget(url, stream=False):
 # -----------------------------------------------------------------------------
 
 
-# Filtering out every non English match
-search_url = "https://pubmed.ncbi.nlm.nih.gov/?term=" + '+'.join(search_terms) + '&filter=lang.english'
-full_search_ids = []
+if OVERWRITE:
+    # Filtering out every non English match
+    search_url = "https://pubmed.ncbi.nlm.nih.gov/?term=" + '+'.join(search_terms) + '&filter=lang.english'
+    full_search_ids = []
 
-# Grabs every page
-page_num = 0
-while (max_page_num and page_num < max_page_num) or not max_page_num:
-    page_num += 1
-    if page_num != 1:
-        page_url = search_url + "&page=" + str(page_num)
-    else:
-        page_url = search_url
-    try:
-        page = _pget(page_url)
-        page_soup = BeautifulSoup(page.text, features="lxml")
-        page_ids = page_soup.find("div", {"class": "search-results-chunk results-chunk"}
-                                  ).get("data-chunk-ids").split(",")
-        full_search_ids += page_ids
-    except AttributeError:
-        break
-
-with open(os.path.join(LOGS_PATH, "full_search_ids_anastomotic_leak.pkl"), "rb") as f:
-    full_search_ids = pickle.load(f)
+    # Grabs every page
+    page_num = 0
+    while (max_page_num and page_num < max_page_num) or not max_page_num:
+        page_num += 1
+        if page_num != 1:
+            page_url = search_url + "&page=" + str(page_num)
+        else:
+            page_url = search_url
+        try:
+            page = _pget(page_url)
+            page_soup = BeautifulSoup(page.text, features="lxml")
+            page_ids = page_soup.find("div", {"class": "search-results-chunk results-chunk"}
+                                      ).get("data-chunk-ids").split(",")
+            full_search_ids += page_ids
+        except AttributeError:
+            break
+else:
+    with open(os.path.join(LOGS_PATH, "full_search_ids_anastomotic_leak_full.pkl"), "rb") as f:
+        full_search_ids = pickle.load(f)
 
 articles_list = []
 
-for article_id in tqdm(full_search_ids[:50]):
+for article_id in tqdm(full_search_ids):
 
     url = "https://pubmed.ncbi.nlm.nih.gov/" + str(article_id)
 
     with _pget(url) as r:
         soup = BeautifulSoup(r.text, "html.parser")
 
-    citations_ids = []
-    citedby = soup.find("div", {"class": "citedby-articles"})
-    if citedby:
-        for a in citedby.find_all("a", {"class": "docsum-title"}):
-            citations_ids.append(a["data-ga-action"])
+    try:
+        author_names = []
+        authors_soup_list = soup.find("div", {"class": "inline-authors"}
+                                      ).find_all("span", {"class": "authors-list-item"})
+        for author_soup in authors_soup_list:
+            author_soup = author_soup.find("a", {"class": "full-name"})
+            author_names.append(author_soup["data-ga-label"])
+    except:
+        author_names = []
 
     try:
         date_text = soup.find("div", {"class": "article-source"}).find("span", {"class": "cit"}).text.split(";")[0]
@@ -92,20 +99,30 @@ for article_id in tqdm(full_search_ids[:50]):
     except:
         date = "Undef"
 
+    citations_ids = []
+    citedby = soup.find("div", {"class": "citedby-articles"})
+    if citedby:
+        for a in citedby.find_all("a", {"class": "docsum-title"}):
+            citations_ids.append(a["data-ga-action"])
+
     articles_list.append({"ID": article_id,
-                          "Publication Date": date,
-                          "Citations ID": citations_ids})
+                          "Authors": author_names,
+                          "Date": date,
+                          "Citations": citations_ids})
 
 citations_df = pd.DataFrame(articles_list).set_index("ID")
 
 # -----------------------------------------------------------------------------
 
 with open(os.path.join(DATA_PATH, "citations.csv"), "w") as f:
-    citations_df.to_csv(f)
+    citations_df.to_csv(f, sep="|")
+
+with open(os.path.join(DATA_PATH, "citations.pkl"), "wb") as f:
+    pickle.dump(citations_df, f)
 
 G = nx.DiGraph()
 
-for i, c in citations_df["Citations ID"].iteritems():
+for i, c in citations_df["Citations"].iteritems():
     G.add_node(i)
     for c2 in c:
         G.add_edge(c2, i)
