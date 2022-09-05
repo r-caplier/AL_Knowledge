@@ -134,5 +134,5 @@ data/
 # Logs folder
 logs/
 
-# Notebooks
-*.ipynb
+# Results folder ?
+results/
