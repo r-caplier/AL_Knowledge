@@ -2,10 +2,10 @@ import os
 import pathlib
 import pandas as pd
 
+# All frequently used paths for data and logs
+# Tested on Ubuntu
 ROOT_PATH = pathlib.Path(__file__).parent.resolve().parent.resolve()
 
-# Parent folder for all data
-# Not added to git
 DATA_PATH = os.path.join(ROOT_PATH, "data")
 if not os.path.exists(DATA_PATH):
     os.mkdir(DATA_PATH)

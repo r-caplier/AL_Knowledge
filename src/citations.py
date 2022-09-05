@@ -21,6 +21,7 @@ max_page_num = None
 OVERWRITE = False
 
 # -----------------------------------------------------------------------------
+# Adding all relevant utilities
 
 
 def _pget(url, stream=False):
@@ -48,6 +49,7 @@ def _pget(url, stream=False):
 # -----------------------------------------------------------------------------
 
 
+# Option to not re-download all search results every time as it takes a while
 if OVERWRITE:
     # Filtering out every non English match
     search_url = "https://pubmed.ncbi.nlm.nih.gov/?term=" + '+'.join(search_terms) + '&filter=lang.english'
@@ -82,6 +84,7 @@ for article_id in tqdm(full_search_ids):
     with _pget(url) as r:
         soup = BeautifulSoup(r.text, "html.parser")
 
+    # Getting author names
     try:
         author_names = []
         authors_soup_list = soup.find("div", {"class": "inline-authors"}
@@ -92,6 +95,7 @@ for article_id in tqdm(full_search_ids):
     except:
         author_names = []
 
+    # Getting publication date
     try:
         date_text = soup.find("div", {"class": "article-source"}).find("span", {"class": "cit"}).text.split(";")[0]
         date_text = " ".join(date_text.split(" ")[:2])
@@ -99,6 +103,7 @@ for article_id in tqdm(full_search_ids):
     except:
         date = "Undef"
 
+    # Getting all citations mentionned in the Cited By section on pubmed
     citations_ids = []
     citedby = soup.find("div", {"class": "citedby-articles"})
     if citedby:
@@ -113,6 +118,8 @@ for article_id in tqdm(full_search_ids):
 citations_df = pd.DataFrame(articles_list).set_index("ID")
 
 # -----------------------------------------------------------------------------
+# Saving everything for later use, then building the networkx object
+# The network takes forever to display and is betetr seen with physics off
 
 with open(os.path.join(DATA_PATH, "citations.csv"), "w") as f:
     citations_df.to_csv(f, sep="|")

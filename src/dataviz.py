@@ -11,6 +11,8 @@ import seaborn as sns
 from constants import *
 
 # -----------------------------------------------------------------------------
+# Aims to display how the semantic groups are distributed throughout our dataset
+# Imports the semantic network
 
 with open(os.path.join(DATA_PATH, "2021AB_SN", "SG"), "r") as f:
     group_df = pd.read_csv(f, sep="|", header=None)
@@ -21,6 +23,8 @@ for abbrev, name in group_df[[0, 1]].itertuples(index=False):
         full_names[abbrev] = name.upper()
 
 # -----------------------------------------------------------------------------
+# Counts every group occurence per document
+# Also counts every word, 2-gram and 3-gram
 
 total_distrib = {}
 tokens = []
@@ -55,6 +59,8 @@ word_pairs = pd.DataFrame(counted_2.items(),columns=['pairs', 'frequency']).sort
 trigrams = pd.DataFrame(counted_3.items(), columns=['trigrams', 'frequency']).sort_values(by='frequency', ascending=False)
 
 # -----------------------------------------------------------------------------
+# Displays the distribution of semantic groups, words, 2-grams and 3-grams, and
+# a wordcloud
 
 plt.figure(figsize=(9,5))
 sns.barplot(x='frequency', y='group', data=pd.DataFrame(list_distrib))
