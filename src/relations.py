@@ -41,11 +41,8 @@ def build_relations_from_filename(filename):
     relations_dicts = []
 
     for i in range(len(entities_df)):
-        if entities_df.iloc[i]["Type"] not in ["ENTITY", "PERSON", "ORG"]:
-            continue
         forward_df = entities_df.iloc[i + 1:].loc[entities_df["Sentence"] == entities_df.iloc[i]["Sentence"]]
-        valid_relations = forward_df.loc[(forward_df["EndWord"] <= entities_df["StartWord"].iloc[i] +
-                                          MAX_DIST) & (forward_df["Word"] != entities_df.iloc[i]["Word"])]
+        valid_relations = forward_df.loc[forward_df["Word"] != entities_df.iloc[i]["Word"]]
         for j in range(len(valid_relations)):
             if entities_df.iloc[i]["Word"] != entities_df.iloc[j]["Word"]:
                 relations_dicts.append({"First": i,

@@ -28,6 +28,9 @@ for abbrev, name in group_df[[0, 1]].itertuples(index=False):
 
 total_distrib = {}
 tokens = []
+tokens_undef = []
+tokens_proc = []
+tokens_acti = []
 
 for filename in os.listdir(ARTICLES_PATH):
 
@@ -45,40 +48,72 @@ for filename in os.listdir(ARTICLES_PATH):
             total_distrib[i] += v
 
     tokens += list(entities_df["Word"].astype(str).values)
+    tokens_undef += list(entities_df.loc[(entities_df["Type"] == "ENTITY") & (entities_df["CUI"] == "UNDEF")]["Word"].astype(str).values)
+    tokens_proc += list(entities_df.loc[(entities_df["Type"] == "PROC")]["Word"].astype(str).values)
+    tokens_acti += list(entities_df.loc[(entities_df["Type"] == "ACTI")]["Word"].astype(str).values)
 
-list_distrib = []
-for name, v in total_distrib.items():
-    list_distrib.append({"group": name, "frequency": v})
 
-counted = Counter(tokens)
-counted_2 = Counter(ngrams(tokens, 2))
-counted_3 = Counter(ngrams(tokens, 3))
+# list_distrib = []
+# total_v = 0
+# undef_v = 0
+# for name, v in total_distrib.items():
+#     total_v += v
+#     list_distrib.append({"group": name, "frequency": v})
+#     if name == "UNDEF":
+#         undef_v = v
+#
+# print(undef_v / total_v)
 
-word_freq = pd.DataFrame(counted.items(), columns=['word', 'frequency']).sort_values(by='frequency', ascending=False)
-word_pairs = pd.DataFrame(counted_2.items(),columns=['pairs', 'frequency']).sort_values(by='frequency', ascending=False)
-trigrams = pd.DataFrame(counted_3.items(), columns=['trigrams', 'frequency']).sort_values(by='frequency', ascending=False)
+# counted = Counter(tokens)
+# counted_2 = Counter(ngrams(tokens, 2))
+# counted_3 = Counter(ngrams(tokens, 3))
+#
+# word_freq = pd.DataFrame(counted.items(), columns=['word', 'frequency']).sort_values(by='frequency', ascending=False)
+# word_pairs = pd.DataFrame(counted_2.items(), columns=['pairs', 'frequency']).sort_values(
+#     by='frequency', ascending=False)
+# trigrams = pd.DataFrame(counted_3.items(), columns=['trigrams', 'frequency']).sort_values(
+#     by='frequency', ascending=False)
 
 # -----------------------------------------------------------------------------
 # Displays the distribution of semantic groups, words, 2-grams and 3-grams, and
 # a wordcloud
 
-plt.figure(figsize=(9,5))
-sns.barplot(x='frequency', y='group', data=pd.DataFrame(list_distrib))
-
-plt.figure(figsize=(9,5))
-sns.barplot(x='frequency',y='word',data=word_freq.head(40))
-
-plt.figure(figsize=(9,5))
-sns.barplot(x='frequency',y='pairs',data=word_pairs.head(20))
-
-plt.figure(figsize=(9,5))
-sns.barplot(x='frequency',y='trigrams',data=trigrams.head(20))
+# plt.figure(figsize=(9, 5))
+# sns.barplot(x='frequency', y='group', data=pd.DataFrame(list_distrib))
+#
+# plt.figure(figsize=(9, 5))
+# sns.barplot(x='frequency', y='word', data=word_freq.head(40))
+#
+# plt.figure(figsize=(9, 5))
+# sns.barplot(x='frequency', y='pairs', data=word_pairs.head(20))
+#
+# plt.figure(figsize=(9, 5))
+# sns.barplot(x='frequency', y='trigrams', data=trigrams.head(20))
 
 clean_words_string = " ".join(tokens)
 wordcloud = WordCloud(background_color="white").generate(clean_words_string)
 
-plt.figure(figsize = (12, 8))
+clean_words_string_undef = " ".join(tokens_undef)
+wordcloud_undef = WordCloud(background_color="white").generate(clean_words_string_undef)
+
+clean_words_string_proc = " ".join(tokens_proc)
+wordcloud_proc = WordCloud(background_color="white").generate(clean_words_string_proc)
+
+clean_words_string_acti = " ".join(tokens_acti)
+wordcloud_acti = WordCloud(background_color="white").generate(clean_words_string_acti)
+
+
+plt.figure(figsize=(12, 8))
 plt.imshow(wordcloud)
+
+plt.figure(figsize=(12, 8))
+plt.imshow(wordcloud_undef)
+
+plt.figure(figsize=(12, 8))
+plt.imshow(wordcloud_proc)
+
+plt.figure(figsize=(12, 8))
+plt.imshow(wordcloud_acti)
 
 plt.axis("off")
 plt.show()

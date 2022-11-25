@@ -13,6 +13,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 from constants import *
 
+search_terms = ["anastomotic", "leak"]
+
 # -----------------------------------------------------------------------------
 
 # Singular pattern formatting is
@@ -147,6 +149,10 @@ class DownloaderClass():
         pubmed_page = self._pget(pubmed_url)
         pubmed_soup = BeautifulSoup(pubmed_page.text, features="lxml")
 
+        # Getting title
+        title_soup = pubmed_soup.find("head").find("title")
+        title = title_soup.text[:-9]
+
         # Grabbing author names
         try:
             author_names = []
@@ -188,7 +194,7 @@ class DownloaderClass():
             response = False
             text = ""
 
-        return response, author_names, date, citations_ids, text
+        return response, title, author_names, date, citations_ids, text
 
     def _get_soup(self, url):
         """
@@ -291,11 +297,12 @@ class DownloaderClass():
 
         for article_id in tqdm(self.search_results_ids):
             doc_num += 1
-            response, authors, date, citations_ids, text = self._get_article_features(article_id)
+            response, title, authors, date, citations_ids, text = self._get_article_features(article_id)
 
             if response:
                 found_num += 1
                 articles_list.append({"ID": article_id,
+                                      "Title": title,
                                       "Authors": authors,
                                       "Date": date,
                                       "Citations": citations_ids})
@@ -326,8 +333,7 @@ class DownloaderClass():
 
 downloader = DownloaderClass()
 print("Downloading...")
-search_terms = ["anastomotic", "leak"]
-downloader.download(search_terms, max_page_num=2, overwrite=True)
+downloader.download(search_terms, max_page_num=None, overwrite=True)
 
 cleaner = CleanerClass()
 print("Cleaning text...")

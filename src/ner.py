@@ -178,7 +178,6 @@ ner_models = [
 ner_models.sort(key=lambda x: x["prio"])
 
 for filename in tqdm(os.listdir(ARTICLES_PATH)):
-
     entities_df = build_merged_entities_df(filename, ner_models)
     entities_df.fillna(value="UNDEF", inplace=True)
 

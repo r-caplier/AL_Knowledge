@@ -18,7 +18,7 @@ from constants import *
 search_terms = ["anastomotic", "leak"]
 max_page_num = None
 
-OVERWRITE = False
+OVERWRITE = True
 
 # -----------------------------------------------------------------------------
 # Adding all relevant utilities
@@ -71,6 +71,10 @@ if OVERWRITE:
             full_search_ids += page_ids
         except AttributeError:
             break
+
+    with open(os.path.join(LOGS_PATH, "full_search_ids_anastomotic_leak.pkl"), "wb") as f:
+        pickle.dump(full_search_ids, f)
+
 else:
     with open(os.path.join(LOGS_PATH, "full_search_ids_anastomotic_leak_full.pkl"), "rb") as f:
         full_search_ids = pickle.load(f)
@@ -83,6 +87,10 @@ for article_id in tqdm(full_search_ids):
 
     with _pget(url) as r:
         soup = BeautifulSoup(r.text, "html.parser")
+
+    # Getting title
+    title_soup = soup.find("head").find("title")
+    title = title_soup.text[:-9]
 
     # Getting author names
     try:
@@ -111,25 +119,26 @@ for article_id in tqdm(full_search_ids):
             citations_ids.append(a["data-ga-action"])
 
     articles_list.append({"ID": article_id,
+                          "Title": title,
                           "Authors": author_names,
                           "Date": date,
                           "Citations": citations_ids})
 
-citations_df = pd.DataFrame(articles_list).set_index("ID")
+articles_df = pd.DataFrame(articles_list).set_index("ID")
 
 # -----------------------------------------------------------------------------
 # Saving everything for later use, then building the networkx object
 # The network takes forever to display and is betetr seen with physics off
 
-with open(os.path.join(DATA_PATH, "citations.csv"), "w") as f:
-    citations_df.to_csv(f, sep="|")
+with open(os.path.join(DATA_PATH, "articles_infos.csv"), "w") as f:
+    articles_df.to_csv(f, sep="|")
 
-with open(os.path.join(DATA_PATH, "citations.pkl"), "wb") as f:
-    pickle.dump(citations_df, f)
+with open(os.path.join(DATA_PATH, "articles_infos.pkl"), "wb") as f:
+    pickle.dump(articles_df, f)
 
 G = nx.DiGraph()
 
-for i, c in citations_df["Citations"].iteritems():
+for i, c in articles_df["Citations"].iteritems():
     G.add_node(i)
     for c2 in c:
         G.add_edge(c2, i)
@@ -137,4 +146,5 @@ for i, c in citations_df["Citations"].iteritems():
 net = Network(height='600px', width='50%', directed=True)
 net.show_buttons(filter_=['physics'])
 net.from_nx(G)
+net.toggle_physics(False)
 net.show(os.path.join(DATA_PATH, "citations_graph.html"))
